@@ -160,7 +160,7 @@ func main() {
 	// set up message expiry timer
 	client.Ready(func() {
 		go func() {
-			for range time.Tick(15 * time.Second) {
+			for range time.Tick(30 * time.Minute) {
 				logrus.Debug("running expiry pass")
 				expireMessages(client)
 				logrus.Debug("finished expiry pass")
