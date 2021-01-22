@@ -56,13 +56,13 @@ func expireMessages(client *disgord.Client) {
 				switch key {
 				case "expire":
 					if !strings.HasSuffix(val, "d") {
-						logrus.Warnf("ignoring expire tag in %s/%s because it's not in Nd format", guild.Name, channel.Name)
+						logrus.Warnf("ignoring expire tag in %s/#%s because it's not in Nd format", guild.Name, channel.Name)
 						continue
 					}
 					val = strings.TrimSuffix(val, "d")
 					expireInDays, err = strconv.Atoi(val)
 					if err != nil {
-						logrus.Warnf("ignoring expire tag in %s/%s because it's not an integer of days", guild.Name, channel.Name)
+						logrus.Warnf("ignoring expire tag in %s/#%s because it's not an integer of days", guild.Name, channel.Name)
 						continue
 					}
 					logrus.Debugf("[%s/#%s]: expire in %s days", guild.Name, channel.Name, val)
@@ -92,7 +92,7 @@ func expireMessages(client *disgord.Client) {
 				}
 				if len(messages) == 0 {
 					// we've reached the beginning of this channel
-					logrus.Infof("[%s/%s] reached the beginning with %d to remove", guild.Name, channel.Name, len(messagesToDelete))
+					logrus.Debugf("[%s/#%s] reached the beginning with %d to remove", guild.Name, channel.Name, len(messagesToDelete))
 					break
 				}
 				for _, message := range messages {
@@ -106,19 +106,17 @@ func expireMessages(client *disgord.Client) {
 						messagesToDelete = append(messagesToDelete, message)
 					}
 					if len(messagesToDelete) >= 5 {
-						logrus.Debugf("[%s/%s] more than 5 messages to delete, will come back later", guild.Name, channel.Name)
 						break
 					}
 				}
 				if len(messagesToDelete) >= 5 {
-					logrus.Debugf("[%s/%s] more than 5 messages to delete, will come back later", guild.Name, channel.Name)
+					logrus.Debugf("[%s/#%s] more than 5 messages to delete, will come back later", guild.Name, channel.Name)
 					break
 				}
 			}
 
 			for _, message := range messagesToDelete {
-				// TODO: probably make this a debug log call
-				logrus.Infof("[%s/%s] older than %dd: %s", guild.Name, channel.Name, expireInDays, message.Content)
+				logrus.Debugf("[%s/#%s] older than %dd: %s", guild.Name, channel.Name, expireInDays, message.Content)
 				if err := client.DeleteMessage(context.Background(), channel.ID, message.ID); err != nil {
 					logrus.Error(err)
 					continue
