@@ -122,6 +122,10 @@ func expireMessages(client *disgord.Client) {
 					continue
 				}
 			}
+
+			if len(messagesToDelete) > 0 {
+				logrus.Infof("[%s/#%s] removed %d expired messages", guild.Name, channel.Name, len(messagesToDelete))
+			}
 		}
 	}
 }
@@ -159,6 +163,7 @@ func main() {
 			for range time.Tick(15 * time.Second) {
 				logrus.Debug("running expiry pass")
 				expireMessages(client)
+				logrus.Debug("finished expiry pass")
 			}
 		}()
 	})
