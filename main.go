@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -19,14 +18,16 @@ var channelOptionRegex = regexp.MustCompile(`\[([^\[\]]*)\]`)
 func expireMessages(client *disgord.Client) {
 	// for each guild we're a part of
 	for _, guildID := range client.GetConnectedGuilds() {
-		guild, err := client.GetGuild(context.Background(), guildID)
+		guildQuery := client.Guild(guildID)
+
+		guild, err := guildQuery.Get()
 		if err != nil {
 			logrus.Error(err)
 			continue
 		}
 
 		// for each channel in this guild
-		channels, err := client.GetGuildChannels(context.Background(), guildID)
+		channels, err := guildQuery.GetChannels()
 		if err != nil {
 			logrus.Error(err)
 			continue
@@ -82,7 +83,7 @@ func expireMessages(client *disgord.Client) {
 			// this method seems wasteful and poorly optimized. this will need to be addressed
 			for {
 				// for each message in this channel
-				messages, err := client.GetMessages(context.Background(), channel.ID, &disgord.GetMessagesParams{
+				messages, err := client.Channel(channel.ID).GetMessages(&disgord.GetMessagesParams{
 					Limit:  100,
 					Before: earliestMessage,
 				})
@@ -117,7 +118,8 @@ func expireMessages(client *disgord.Client) {
 
 			for _, message := range messagesToDelete {
 				logrus.Debugf("[%s/#%s] older than %dd: %s", guild.Name, channel.Name, expireInDays, message.Content)
-				if err := client.DeleteMessage(context.Background(), channel.ID, message.ID); err != nil {
+				// WTF is this process for deleting a message
+				if err := client.Channel(message.ChannelID).Message(message.ID).Delete(); err != nil {
 					logrus.Error(err)
 					continue
 				}
@@ -149,7 +151,6 @@ func main() {
 		//RejectEvents: disgord.AllEventsExcept(disgord.EvtMessageCreate),
 		Logger: disgordLogger,
 	})
-	defer client.StayConnectedUntilInterrupted(context.Background())
 
 	// set up commands
 	router := gommand.NewRouter(&gommand.RouterConfig{
@@ -158,8 +159,11 @@ func main() {
 	router.Hook(client)
 
 	// set up message expiry timer
-	client.Ready(func() {
+	client.Gateway().BotGuildsReady(func() {
 		go func() {
+			logrus.Debug("running initial expiry pass")
+			expireMessages(client)
+			logrus.Debug("finished initial expiry pass")
 			for range time.Tick(30 * time.Minute) {
 				logrus.Debug("running expiry pass")
 				expireMessages(client)
@@ -167,4 +171,6 @@ func main() {
 			}
 		}()
 	})
+
+	client.Gateway().StayConnectedUntilInterrupted()
 }
